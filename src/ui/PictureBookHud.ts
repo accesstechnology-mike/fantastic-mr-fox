@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { portraitTexture } from "../art/appearance";
-import { SWITCH_SLOTS } from "../data/characters";
+import { CHARACTERS, SWITCH_SLOTS } from "../data/characters";
 import { INK, LETTERBOX, PAPER } from "../data/palette";
 import type { CharacterId } from "../types";
 import { isUnlocked } from "../systems/party";
@@ -62,7 +62,7 @@ export class PictureBookHud {
         color: "#2b2118",
       })
       .setOrigin(1, 0);
-    this.party = scene.add.container(628, 6);
+    this.party = scene.add.container(520, 4);
     this.root.add([top, bottom, this.title, this.ink, this.hint, this.toast, this.noise, this.party]);
     scene.add.rectangle(512, 2, 1024, 6, LETTERBOX, 0.25).setScrollFactor(0).setDepth(79);
     scene.add.rectangle(512, 574, 1024, 6, LETTERBOX, 0.25).setScrollFactor(0).setDepth(79);
@@ -99,27 +99,35 @@ export class PictureBookHud {
     allowed.forEach((id, index) => {
       const unlocked = isUnlocked(id);
       const slot = SWITCH_SLOTS.indexOf(id);
-      const x = index * 54;
-      const img = scene.add.image(x, 16, portraitTexture(id)).setScale(0.48);
-      img.setAlpha(unlocked ? (id === current ? 1 : 0.78) : 0.22);
+      const x = index * 92;
       const key = slot >= 0 ? String(slot + 1) : "";
+      const box = scene.add.rectangle(x, 24, 86, 50, PAPER, unlocked ? 0.96 : 0.45).setStrokeStyle(id === current ? 3 : 1, INK, id === current ? 1 : 0.45);
+      const img = scene.add.image(x - 26, 24, portraitTexture(id)).setScale(0.55);
+      img.setAlpha(unlocked ? 1 : 0.25);
       const caption = scene.add
-        .text(x, 36, unlocked ? key : "", {
+        .text(x + 8, 16, unlocked ? `${key}` : "—", {
           fontFamily: "Libre Baskerville, serif",
-          fontSize: "11px",
+          fontSize: "14px",
           color: "#2b2118",
         })
-        .setOrigin(0.5, 0);
-      if (id === current) {
-        const ring = scene.add.rectangle(x, 16, 34, 34).setStrokeStyle(2, INK, 0.85);
-        this.party.add(ring);
-      }
-      if (unlocked && this.onPick) {
+        .setOrigin(0, 0.5);
+      const name = scene.add
+        .text(x + 8, 32, CHARACTERS[id].name, {
+          fontFamily: "Caveat, cursive",
+          fontSize: "14px",
+          color: "#2b2118",
+        })
+        .setOrigin(0, 0.5);
+      if (unlocked) {
+        box.setInteractive({ useHandCursor: true });
         img.setInteractive({ useHandCursor: true });
-        img.on("pointerdown", () => this.onPick?.(id));
-        caption.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.onPick?.(id));
+        const pick = () => this.onPick?.(id);
+        box.on("pointerdown", pick);
+        img.on("pointerdown", pick);
+        caption.setInteractive({ useHandCursor: true }).on("pointerdown", pick);
+        name.setInteractive({ useHandCursor: true }).on("pointerdown", pick);
       }
-      this.party.add([img, caption]);
+      this.party.add([box, img, caption, name]);
     });
   }
 

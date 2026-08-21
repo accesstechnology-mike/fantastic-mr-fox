@@ -172,18 +172,17 @@ function buildWoodRows(): string[] {
   strokeRect(rows, 60, 12, 5, 4, "R");
   fillRect(rows, 61, 13, 3, 2, "_");
 
-  for (const x of [11, 34, 58]) {
-    fillRect(rows, x, 16, 1, 8, ",");
-  }
-
   stampPatch(rows, 36, 34, 4, "#", ["+"]);
   fillRect(rows, 33, 32, 7, 5, ",");
   fillRect(rows, 34, 33, 5, 3, ".");
   put(rows, 36, 34, "+");
 
-  put(rows, 11, 15, ".");
-  put(rows, 34, 15, ".");
-  put(rows, 58, 16, ".");
+  for (const yard of WOOD_YARDS) {
+    const gx = yard.x + Math.floor(yard.w / 2);
+    const gy = yard.y + yard.h - 1;
+    fillRect(rows, gx - 1, gy, 3, 1, ".");
+    fillRect(rows, gx - 1, gy + 1, 3, 12, ",");
+  }
   put(rows, 8, 10, ".");
   put(rows, 14, 11, ".");
   put(rows, 32, 11, ".");
@@ -319,7 +318,11 @@ export const siegeLevel: LevelDef = {
     { x: 25, y: 14 },
     { x: 21, y: 14 },
   ],
-  ...emptyMarks,
+  labels: [
+    { x: 24, y: 7, title: "Dig down", subtitle: "hold Space — the grass above kills" },
+    { x: 24, y: 13, title: "The den", subtitle: "click Mrs Fox or a cub to play as them" },
+  ],
+  yards: [],
   collapseY: 1,
   objective: reachDen,
   allowed: ["mrFox", "mrsFox", "smallFox"],
