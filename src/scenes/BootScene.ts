@@ -18,9 +18,15 @@ export class BootScene extends Phaser.Scene {
         color: "#2b2118",
       })
       .setOrigin(0.5);
-    assertStoryGraph();
-    assertAllLevels();
-    generateAllTextures(this);
+    try {
+      assertStoryGraph();
+      assertAllLevels();
+      generateAllTextures(this);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      label.setText(message);
+      throw error;
+    }
     this.time.delayedCall(200, () => {
       label.destroy();
       this.scene.start("Menu");
