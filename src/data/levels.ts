@@ -268,65 +268,59 @@ export const woodLevel: LevelDef = {
   darkness: 0.35,
 };
 
-const siegeRows = normalizeRows(`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-^^^^^%%%%%%%%%%%^^^^%%%%%%%%%%%^^^^%%%%%%%%%%%^^^^
-^^^^%%%.....%%%%%%%.....%%%%%%%.....%%%%%%%^^^^^^^
-R%%%.........%.....................%.........%%%R
-R%%..........%........+............%..........%%R
-R%...........%%...................%%...........%R
-R%%%%%........%%%%%%%%%%%%%%%%%%%%%........%%%%%R
-RRR%%%........%%%RRRRRRRRRRRRR%%%........%%%RRRR
-RR%%%%........%%%R...........R%%%........%%%%RRR
-R%%%%%ssss....%%%R...........R%%%....wwww%%%%%R
-R%%%%%..........%%...........%%..........%%%%%R
-R%%%%%%.........%%....DDD....%%.........%%%%%%R
-R%%%%%%%........%%....DDD....%%........%%%%%%%R
-RR%%%%%%%.......%%....DDD....%%.......%%%%%%%RR
-RRR%%%%%%%......%%%%%%%%%%%%%.......%%%%%%%RRR
-RRRR%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%RRRR
-RRRRRR%%%%%%%%%RRRRRRRRRRRRRR%%%%%%%%%RRRRRRRR
-RRRR%%%%%................................%%%%%RR
-RRR%%%%.............%RRRR%...............%%%%RRR
-RR%%%%..............%RRRR%................%%%%RR
-R%%%%.....%%%%%%....%RRRR%....%%%%%%.......%%%%R
-R%%%......%RRRR%....%%%%%%....%RRRR%........%%%R
-R%%%......%RRRR%..............%RRRR%........%%%R
-R%%%%.....%%%%%%..............%%%%%%.......%%%%R
-R%%%%%....................................%%%%%R
-RR%%%%%..............................B...%%%%%RR
-RRR%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%RRR
-RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
-`);
+function buildSiegeRows(): string[] {
+  const width = 48;
+  const height = 20;
+  const rows = makeRows(width, height, "%");
+  fillRect(rows, 0, 0, width, 2, "^");
+  fillRect(rows, 0, 0, 2, height, "R");
+  fillRect(rows, width - 2, 0, 2, height, "R");
+  fillRect(rows, 0, height - 1, width, 1, "R");
+
+  fillRect(rows, 8, 3, 32, 5, ".");
+  put(rows, 24, 4, "+");
+
+  fillRect(rows, 21, 9, 6, 2, "s");
+  fillRect(rows, 6, 8, 4, 3, "s");
+  fillRect(rows, 38, 8, 4, 3, "w");
+
+  fillRect(rows, 14, 11, 20, 6, ".");
+  fillRect(rows, 20, 13, 8, 3, "D");
+  return rows;
+}
+
+const SIEGE_SPAWN = { x: 24, y: 5 };
+const SIEGE_ALLOWED: CharacterId[] = ["mrFox", "mrsFox", "smallFox"];
 
 export const siegeLevel: LevelDef = {
   id: "siege",
   title: "The Hill Comes Down",
-  ink: "The surface is death. Dig. When the earth pinches, send the smallest.",
+  ink: "You are already home. The shovels eat from above. Dig deeper. When the earth pinches, send the smallest.",
   ambient: "tunnel",
   tileSize: 24,
-  rows: siegeRows,
-  spawn: { x: 24, y: 5 },
-  hole: { x: 24, y: 5 },
+  rows: buildSiegeRows(),
+  spawn: SIEGE_SPAWN,
+  hole: SIEGE_SPAWN,
   patrols: [],
   foods: [],
-  npcs: [{ id: "mrsFox", x: 23, y: 13, label: "Mrs Fox" }],
+  npcs: [{ id: "mrsFox", x: 20, y: 5, label: CHARACTERS.mrsFox.name }],
   cubs: [
-    { x: 22, y: 13 },
-    { x: 24, y: 13 },
-    { x: 25, y: 14 },
-    { x: 21, y: 14 },
+    { x: 22, y: 6 },
+    { x: 26, y: 6 },
+    { x: 27, y: 5 },
+    { x: 21, y: 6 },
   ],
   labels: [
-    { x: 24, y: 7, title: "Dig down", subtitle: "hold Space — the grass above kills" },
-    { x: 24, y: 13, title: "The den", subtitle: "click Mrs Fox or a cub to play as them" },
+    { x: 24, y: 3, title: "The old den", subtitle: "click a fox — or 1 / 2 / 3 — to play as them" },
+    { x: 24, y: 8, title: "Dig down", subtitle: "hold Space at this earth" },
+    { x: 24, y: 9, title: CHARACTERS.smallFox.name, subtitle: "only a small fox fits — press 3 or click a cub" },
+    { x: 24, y: 14, title: "A deeper den", subtitle: "get the family here" },
   ],
   yards: [],
-  collapseY: 1,
+  collapseY: -1,
   objective: reachDen,
-  allowed: ["mrFox", "mrsFox", "smallFox"],
-  darkness: 0.55,
+  allowed: SIEGE_ALLOWED,
+  darkness: 0.22,
 };
 
 const starveRows = normalizeRows(`

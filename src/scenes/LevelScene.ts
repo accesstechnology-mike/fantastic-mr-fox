@@ -130,6 +130,9 @@ export class LevelScene extends Phaser.Scene {
     this.paintYards();
     this.placeLabels();
     this.unlockFamilyOnTheMap();
+    if (this.chapterId === "shovels") {
+      unlockCharacters(this.level.allowed);
+    }
     this.spawnActors();
     this.bindKeys();
     this.hud = new PictureBookHud(this);
@@ -156,7 +159,7 @@ export class LevelScene extends Phaser.Scene {
 
     if (this.chapterId === "shovels") {
       this.time.addEvent({
-        delay: 2400,
+        delay: 4000,
         loop: true,
         callback: () => this.advanceCollapse(),
       });
@@ -279,6 +282,16 @@ export class LevelScene extends Phaser.Scene {
       sprite.setInteractive({ useHandCursor: true });
       const bit = { ...npc, x: open.tx, y: open.ty, sprite };
       sprite.on("pointerdown", () => this.engageNpc(bit));
+      this.add
+        .text(pos.x, pos.y - 28, npc.label, {
+          fontFamily: "Caveat, cursive",
+          fontSize: "16px",
+          color: "#2b2118",
+          backgroundColor: "#f4e6c4cc",
+          padding: { x: 4, y: 1 },
+        })
+        .setOrigin(0.5)
+        .setDepth(16);
       this.npcs.push(bit);
     }
     for (const cub of this.level.cubs) {
@@ -291,6 +304,20 @@ export class LevelScene extends Phaser.Scene {
         this.refreshPartyHud();
         this.trySwitch("smallFox");
       });
+    }
+    if (this.level.cubs.length > 0) {
+      const first = this.snapOpen(this.level.cubs[0].x, this.level.cubs[0].y);
+      const pos = this.grid.tileCenter(first.tx, first.ty);
+      this.add
+        .text(pos.x, pos.y - 26, CHARACTERS.smallFox.name, {
+          fontFamily: "Caveat, cursive",
+          fontSize: "16px",
+          color: "#2b2118",
+          backgroundColor: "#f4e6c4cc",
+          padding: { x: 4, y: 1 },
+        })
+        .setOrigin(0.5)
+        .setDepth(16);
     }
   }
 
@@ -305,8 +332,8 @@ export class LevelScene extends Phaser.Scene {
         .join(" · ");
       this.hud.say(
         this,
-        `Hold Space to dig down — the grass above is death. Play as: ${names}. Click a face, or the foxes in the den.`,
-        7200,
+        `The farmers are eating the hill from above. Hold Space to dig a deeper den. Switch now: ${names}.`,
+        7800,
       );
       return;
     }
@@ -373,6 +400,15 @@ export class LevelScene extends Phaser.Scene {
       lb: kb.addKey(Phaser.Input.Keyboard.KeyCodes.OPEN_BRACKET),
       rb: kb.addKey(Phaser.Input.Keyboard.KeyCodes.CLOSED_BRACKET),
     };
+    kb.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.ONE,
+      Phaser.Input.Keyboard.KeyCodes.TWO,
+      Phaser.Input.Keyboard.KeyCodes.THREE,
+      Phaser.Input.Keyboard.KeyCodes.FOUR,
+      Phaser.Input.Keyboard.KeyCodes.FIVE,
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+      Phaser.Input.Keyboard.KeyCodes.TAB,
+    ]);
     kb.on("keydown", (event: KeyboardEvent) => {
       const num = event.key;
       if (num >= "1" && num <= "9") {
@@ -479,9 +515,13 @@ export class LevelScene extends Phaser.Scene {
       return;
     }
     this.digAcc = 0;
-    const hit = this.dig.strike(this.player.x, this.player.y, this.player.facing, this.grid, this.player.id);
-    if (hit?.opened) {
-      this.restamp(hit.tx, hit.ty, ".");
+    const tries = [this.player.facing, { x: 0, y: 1 }, { x: 0, y: -1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+    for (const dir of tries) {
+      const hit = this.dig.strike(this.player.x, this.player.y, dir, this.grid, this.player.id);
+      if (hit?.opened) {
+        this.restamp(hit.tx, hit.ty, ".");
+        return;
+      }
     }
   }
 
@@ -729,10 +769,13 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private advanceCollapse(): void {
-    if (this.collapseY < 0 || this.finished) {
+    if (this.finished) {
       return;
     }
     this.collapseY += 1;
+    if (this.collapseY < 0) {
+      return;
+    }
     for (let tx = 0; tx < this.grid.width; tx += 1) {
       const ch = this.grid.tile(tx, this.collapseY);
       if (ch !== "R" && ch !== " " && !isDeath(ch)) {
@@ -893,7 +936,9 @@ export class LevelScene extends Phaser.Scene {
     } else if (obj.kind === "inviteFamilies") {
       this.hud.setObjective(`Invited ${getSave().feastInvited.length} / 4 families.`);
     } else if (obj.kind === "reachDen") {
-      this.hud.setObjective(this.level.ink);
+      this.hud.setObjective(
+        `Get to the deeper den. Playing ${CHARACTERS[this.player.id].name}. Space digs. 1 / 2 / 3 switches foxes.`,
+      );
     }
   }
 
