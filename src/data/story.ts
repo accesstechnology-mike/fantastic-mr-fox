@@ -2,6 +2,8 @@ import type { ChapterDef, CharacterId, CutsceneScript } from "../types";
 
 export const NEW_GAME_UNLOCKS: CharacterId[] = ["mrFox"];
 
+export const TAIL_SHOT_CUTSCENE = "tail-shot";
+
 export const CHAPTERS: ChapterDef[] = [
   {
     id: "intro",
@@ -25,7 +27,7 @@ export const CHAPTERS: ChapterDef[] = [
     title: "The Shooting",
     kind: "cutscene",
     scene: "Story",
-    cutsceneId: "tail-shot",
+    cutsceneId: TAIL_SHOT_CUTSCENE,
     next: "shovels-open",
     unlocks: ["mrsFox"],
   },
@@ -468,7 +470,7 @@ export const FARMER_MODE = {
 } as const;
 
 export const REQUIRED_CUTSCENES = [
-  "tail-shot",
+  TAIL_SHOT_CUTSCENE,
   "shovels",
   "chicken-house",
   "storehouse",

@@ -1,4 +1,4 @@
-import type { CharacterId, CharacterStats } from "../types";
+import type { CharacterId, CharacterStats, FarmerId } from "../types";
 
 export const CHARACTERS: Record<CharacterId, CharacterStats> = {
   mrFox: {
@@ -266,4 +266,4 @@ export const FOX_PARTY: CharacterId[] = [
   "weasel",
 ];
 
-export const FARMERS: CharacterId[] = ["boggis", "bunce", "bean"];
+export const FARMERS: FarmerId[] = ["boggis", "bunce", "bean"];

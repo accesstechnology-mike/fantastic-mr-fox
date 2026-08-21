@@ -1,16 +1,16 @@
 import Phaser from "phaser";
+import { CHARACTERS } from "../data/characters";
 import { TOASTS } from "../data/dialogue";
 import { farmerLevel } from "../data/levels";
 import { FARMER_MODE } from "../data/story";
-import { WASH_NIGHT } from "../data/palette";
+import { FARM_WASH, INK, PAPER, WASH_NIGHT } from "../data/palette";
 import { Actor } from "../entities/Actor";
 import { TileGrid } from "../systems/grid";
-import { cycleParty, playableNow, slotCharacter, statsOf } from "../systems/party";
+import { cycleParty, playableNow, statsOf } from "../systems/party";
 import { getSave, unlockCharacters } from "../systems/save";
 import { farmerCone, visibilityOf } from "../systems/stealth";
 import type { CharacterId, FarmerId } from "../types";
 import { PictureBookHud } from "../ui/PictureBookHud";
-import { INK, PAPER } from "../data/palette";
 
 interface FoxBit {
   actor: Actor;
@@ -79,6 +79,7 @@ export class FarmerModeScene extends Phaser.Scene {
       unlockCharacters(["boggis", "bunce", "bean"]);
     }
 
+    this.paintMarks();
     this.holes = this.grid.findTiles("+").map((tile) => this.grid.tileCenter(tile.tx, tile.ty));
     if (this.holes.length === 0) {
       throw new Error("Farmer mode map is missing hole tiles");
@@ -106,6 +107,46 @@ export class FarmerModeScene extends Phaser.Scene {
     this.showPicker();
   }
 
+  private paintMarks(): void {
+    const ts = this.grid.tileSize;
+    for (const yard of farmerLevel.yards) {
+      this.add
+        .rectangle(
+          yard.x * ts + (yard.w * ts) / 2,
+          yard.y * ts + (yard.h * ts) / 2,
+          yard.w * ts,
+          yard.h * ts,
+          FARM_WASH[yard.farm],
+          0.14,
+        )
+        .setDepth(2);
+    }
+    for (const label of farmerLevel.labels) {
+      const pos = this.grid.tileCenter(label.x, label.y);
+      this.add
+        .text(pos.x, pos.y - 10, label.title, {
+          fontFamily: "Libre Baskerville, serif",
+          fontSize: "16px",
+          color: "#2b2118",
+          fontStyle: "italic",
+          backgroundColor: "#f4e6c4cc",
+          padding: { x: 6, y: 2 },
+        })
+        .setOrigin(0.5)
+        .setDepth(16);
+      this.add
+        .text(pos.x, pos.y + 10, label.subtitle, {
+          fontFamily: "Caveat, cursive",
+          fontSize: "16px",
+          color: "#2b2118",
+          backgroundColor: "#f4e6c4cc",
+          padding: { x: 5, y: 1 },
+        })
+        .setOrigin(0.5)
+        .setDepth(16);
+    }
+  }
+
   private showPicker(): void {
     this.picking = true;
     this.picker = this.add.container(512, 288).setScrollFactor(0).setDepth(90);
@@ -129,34 +170,38 @@ export class FarmerModeScene extends Phaser.Scene {
         })
         .setOrigin(0.5),
     );
-    const picks: Array<{ id: FarmerId; label: string; x: number }> = [
-      { id: "boggis", label: "Boggis", x: -190 },
-      { id: "bunce", label: "Bunce", x: 0 },
-      { id: "bean", label: "Bean", x: 190 },
+    const picks: Array<{ id: FarmerId; key: string; x: number }> = [
+      { id: "boggis", key: "1", x: -190 },
+      { id: "bunce", key: "2", x: 0 },
+      { id: "bean", key: "3", x: 190 },
     ];
     for (const pick of picks) {
-      const img = this.add.image(pick.x, 20, `char-${pick.id}`).setScale(1.05).setInteractive({ useHandCursor: true });
+      const hit = this.add.rectangle(pick.x, 30, 160, 200, PAPER, 0.01).setInteractive({ useHandCursor: true });
+      const img = this.add.image(pick.x, 10, `char-${pick.id}`).setScale(1.15).setInteractive({ useHandCursor: true });
       const name = this.add
-        .text(pick.x, 110, pick.label, {
+        .text(pick.x, 108, `${pick.key}  ${CHARACTERS[pick.id].name}`, {
           fontFamily: "Libre Baskerville, serif",
           fontSize: "18px",
           color: "#2b2118",
         })
         .setOrigin(0.5);
-      img.on("pointerdown", () => this.startHunt(pick.id));
-      this.picker.add([img, name]);
+      const go = () => this.startHunt(pick.id);
+      hit.on("pointerdown", go);
+      img.on("pointerdown", go);
+      name.setInteractive({ useHandCursor: true }).on("pointerdown", go);
+      this.picker.add([hit, img, name]);
     }
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       if (!this.picking) {
         return;
       }
-      if (event.key === "8") {
+      if (event.key === "1") {
         this.startHunt("boggis");
       }
-      if (event.key === "9") {
+      if (event.key === "2") {
         this.startHunt("bunce");
       }
-      if (event.key === "0") {
+      if (event.key === "3") {
         this.startHunt("bean");
       }
     });
@@ -174,6 +219,7 @@ export class FarmerModeScene extends Phaser.Scene {
     this.spawnFox("smallFox");
     this.coneGfx = this.add.graphics().setDepth(8);
     this.hud = new PictureBookHud(this);
+    this.hud.setPicker((next) => this.switchTo(next));
     this.hud.setChapter(farmerLevel.title, farmerLevel.ink);
     this.hud.refreshParty(this, farmerLevel.allowed, id);
 
@@ -196,7 +242,7 @@ export class FarmerModeScene extends Phaser.Scene {
     };
     kb.on("keydown", (event: KeyboardEvent) => {
       if (event.key >= "1" && event.key <= "9") {
-        this.switchTo(slotCharacter(Number(event.key) - 1));
+        this.switchTo(farmerLevel.allowed[Number(event.key) - 1] ?? null);
       }
     });
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);

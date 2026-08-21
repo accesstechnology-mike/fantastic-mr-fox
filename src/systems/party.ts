@@ -55,7 +55,7 @@ export function canEnter(tile: string, squeeze: SqueezeKind): boolean {
 }
 
 export function partyKind(id: CharacterId): "fox" | "farmer" {
-  return FARMERS.includes(id) ? "farmer" : "fox";
+  return (FARMERS as readonly CharacterId[]).includes(id) ? "farmer" : "fox";
 }
 
 export function defaultFox(): CharacterId {

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { characterTexture } from "../art/appearance";
 import type { CharacterId, CharacterStats } from "../types";
 import { statsOf } from "../systems/party";
 
@@ -9,7 +10,7 @@ export class Actor {
 
   constructor(scene: Phaser.Scene, id: CharacterId, x: number, y: number) {
     this.id = id;
-    this.sprite = scene.add.image(x, y, `char-${id}`);
+    this.sprite = scene.add.image(x, y, characterTexture(id));
     this.sprite.setDepth(20);
     this.apply(id);
   }
@@ -28,9 +29,9 @@ export class Actor {
 
   apply(id: CharacterId): void {
     this.id = id;
-    this.sprite.setTexture(`char-${id}`);
+    this.sprite.setTexture(characterTexture(id));
     const tall = this.stats.bodyH / 28;
-    this.sprite.setScale(0.82 * Math.min(1.15, tall + 0.15));
+    this.sprite.setScale(0.72 * Math.min(1.2, tall + 0.12));
   }
 
   setPos(x: number, y: number): void {

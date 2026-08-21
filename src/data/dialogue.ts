@@ -31,8 +31,8 @@ export const INVITE_LINES: Record<"badger" | "mole" | "rabbit" | "weasel", strin
 
 export const CONTROL_INK = [
   "Arrows or WASD to move. Hold Shift to sneak.",
-  "E to take, talk, or send food home. Space or D to dig.",
-  "[ ] or 1–9 to switch whoever you have met.",
+  "E to take, talk, or send food down the hole. Space to dig.",
+  "Click a face, or 1–9 / [ ] / Tab, to play someone you have met.",
 ].join(" ");
 
 export function abilityInk(id: CharacterId): string {

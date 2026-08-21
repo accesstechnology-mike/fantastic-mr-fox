@@ -143,6 +143,21 @@ export interface NpcDef {
   label: string;
 }
 
+export interface WorldLabel {
+  x: number;
+  y: number;
+  title: string;
+  subtitle: string;
+}
+
+export interface FarmYard {
+  farm: FarmId;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface LevelObjective {
   kind:
     | "stealVariety"
@@ -172,6 +187,8 @@ export interface LevelDef {
   foods: FoodDef[];
   npcs: NpcDef[];
   cubs: Array<{ x: number; y: number }>;
+  labels: WorldLabel[];
+  yards: FarmYard[];
   collapseY: number;
   objective: LevelObjective;
   allowed: CharacterId[];

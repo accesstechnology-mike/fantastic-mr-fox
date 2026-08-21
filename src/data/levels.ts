@@ -1,7 +1,41 @@
-import type { CharacterId, FoodDef, LevelDef, LevelObjective, PatrolDef } from "../types";
-import { FOX_PARTY } from "./characters";
+import type { CharacterId, FarmId, FarmYard, FoodDef, LevelDef, LevelObjective, PatrolDef, WorldLabel } from "../types";
+import { CHARACTERS, FOX_PARTY } from "./characters";
 import { FARMER_MODE, RAID_NEED, STEAL_RULE } from "./story";
 import { fillRect, makeRows, normalizeRows, put, stampPatch, strokeRect } from "./buildMap";
+
+const BOGGIS_YARD: FarmYard = { farm: "boggis", x: 4, y: 5, w: 16, h: 11 };
+const BUNCE_YARD: FarmYard = { farm: "bunce", x: 28, y: 6, w: 14, h: 10 };
+const BEAN_YARD: FarmYard = { farm: "bean", x: 50, y: 4, w: 18, h: 13 };
+const WOOD_YARDS: FarmYard[] = [BOGGIS_YARD, BUNCE_YARD, BEAN_YARD];
+const WOOD_HOLE = { x: 36, y: 34 };
+const WOOD_SPAWN = { x: 36, y: 33 };
+
+function foodKindsAt(foods: FoodDef[], farm: FarmId): string {
+  const kinds = [...new Set(foods.filter((food) => food.farm === farm).map((food) => food.kind))];
+  if (kinds.length === 0) {
+    throw new Error(`Cannot label ${farm}: that farm has no food on this map`);
+  }
+  return kinds.join(" · ");
+}
+
+function farmLabels(foods: FoodDef[], yards: FarmYard[], hole: { x: number; y: number }): WorldLabel[] {
+  return [
+    ...yards.map((yard) => ({
+      x: yard.x + Math.floor(yard.w / 2),
+      y: yard.y + yard.h,
+      title: `${CHARACTERS[yard.farm].name}'s farm`,
+      subtitle: foodKindsAt(foods, yard.farm),
+    })),
+    {
+      x: hole.x,
+      y: hole.y + 2,
+      title: `${CHARACTERS.mrFox.name}'s hole`,
+      subtitle: "send supper down here",
+    },
+  ];
+}
+
+const emptyMarks = { labels: [] as WorldLabel[], yards: [] as FarmYard[] };
 
 const stealGoal: LevelObjective = {
   kind: "stealVariety",
@@ -114,7 +148,7 @@ function buildWoodRows(): string[] {
     stampPatch(rows, x, y, 2, ",");
   }
 
-  strokeRect(rows, 4, 5, 16, 11, "R");
+  strokeRect(rows, BOGGIS_YARD.x, BOGGIS_YARD.y, BOGGIS_YARD.w, BOGGIS_YARD.h, "R");
   fillRect(rows, 5, 6, 14, 9, "_");
   strokeRect(rows, 6, 7, 5, 4, "R");
   fillRect(rows, 7, 8, 3, 2, "_");
@@ -122,14 +156,14 @@ function buildWoodRows(): string[] {
   strokeRect(rows, 12, 7, 6, 5, "R");
   fillRect(rows, 13, 8, 4, 3, "_");
 
-  strokeRect(rows, 28, 6, 14, 10, "R");
+  strokeRect(rows, BUNCE_YARD.x, BUNCE_YARD.y, BUNCE_YARD.w, BUNCE_YARD.h, "R");
   fillRect(rows, 29, 7, 12, 8, "_");
   strokeRect(rows, 30, 8, 5, 4, "R");
   fillRect(rows, 31, 9, 3, 2, "_");
   strokeRect(rows, 36, 8, 5, 5, "R");
   fillRect(rows, 37, 9, 3, 3, "_");
 
-  strokeRect(rows, 50, 4, 18, 13, "R");
+  strokeRect(rows, BEAN_YARD.x, BEAN_YARD.y, BEAN_YARD.w, BEAN_YARD.h, "R");
   fillRect(rows, 51, 5, 16, 11, "_");
   strokeRect(rows, 52, 6, 6, 6, "R");
   fillRect(rows, 53, 7, 4, 4, "_");
@@ -221,12 +255,14 @@ export const woodLevel: LevelDef = {
   ambient: "night",
   tileSize: 26,
   rows: buildWoodRows(),
-  spawn: { x: 36, y: 33 },
-  hole: { x: 36, y: 34 },
+  spawn: WOOD_SPAWN,
+  hole: WOOD_HOLE,
   patrols: woodPatrols,
   foods: woodFoods,
   npcs: [],
   cubs: [],
+  labels: farmLabels(woodFoods, WOOD_YARDS, WOOD_HOLE),
+  yards: WOOD_YARDS,
   collapseY: -1,
   objective: stealGoal,
   allowed: ["mrFox"],
@@ -283,6 +319,7 @@ export const siegeLevel: LevelDef = {
     { x: 25, y: 14 },
     { x: 21, y: 14 },
   ],
+  ...emptyMarks,
   collapseY: 1,
   objective: reachDen,
   allowed: ["mrFox", "mrsFox", "smallFox"],
@@ -342,6 +379,7 @@ export const starvationLevel: LevelDef = {
     { x: 24, y: 8 },
     { x: 28, y: 8 },
   ],
+  ...emptyMarks,
   collapseY: -1,
   objective: meetAnimals,
   allowed: foxAllowed(),
@@ -389,6 +427,7 @@ export const chickenLevel: LevelDef = {
   ],
   npcs: [],
   cubs: [],
+  ...emptyMarks,
   collapseY: -1,
   objective: deposit(RAID_NEED.chickenHouse),
   allowed: foxAllowed(),
@@ -435,6 +474,7 @@ export const storeLevel: LevelDef = {
   ],
   npcs: [],
   cubs: [],
+  ...emptyMarks,
   collapseY: -1,
   objective: deposit(RAID_NEED.storehouse),
   allowed: foxAllowed(),
@@ -480,6 +520,7 @@ export const cellarLevel: LevelDef = {
   ],
   npcs: [],
   cubs: [],
+  ...emptyMarks,
   collapseY: -1,
   objective: deposit(RAID_NEED.cellar),
   allowed: foxAllowed(),
@@ -531,6 +572,7 @@ export const feastLevel: LevelDef = {
     { x: 23, y: 9 },
     { x: 25, y: 9 },
   ],
+  ...emptyMarks,
   collapseY: -1,
   objective: inviteAll,
   allowed: ["smallFox"],
@@ -546,11 +588,13 @@ export const farmerLevel: LevelDef = {
   tileSize: 26,
   rows: buildWoodRows(),
   spawn: { x: 36, y: 30 },
-  hole: { x: 36, y: 34 },
+  hole: WOOD_HOLE,
   patrols: [],
   foods: woodFoods,
   npcs: [],
   cubs: [],
+  labels: farmLabels(woodFoods, WOOD_YARDS, WOOD_HOLE),
+  yards: WOOD_YARDS,
   collapseY: -1,
   objective: farmerWatch,
   allowed: ["boggis", "bunce", "bean"],
@@ -601,6 +645,11 @@ export function assertAllLevels(): void {
     for (const point of points) {
       if (point.x < 0 || point.y < 0 || point.x >= width || point.y >= level.rows.length) {
         throw new Error(`Level ${level.id} point is outside the map`);
+      }
+    }
+    for (const label of level.labels) {
+      if (label.x < 0 || label.y < 0 || label.x >= width || label.y >= level.rows.length) {
+        throw new Error(`Level ${level.id} label "${label.title}" is outside the map`);
       }
     }
   }

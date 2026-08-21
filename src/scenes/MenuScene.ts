@@ -12,6 +12,12 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(PAPER);
     this.add.image(512, 288, "paper-bg").setDisplaySize(1024, 576).setAlpha(0.55);
+    this.add.image(130, 430, "char-mrFox").setScale(1.35);
+    this.add.image(250, 460, "char-mrsFox").setScale(1.05);
+    this.add.image(330, 475, "char-smallFox").setScale(0.8);
+    this.add.image(780, 430, "char-boggis").setScale(1.15);
+    this.add.image(870, 450, "char-bunce").setScale(1.05);
+    this.add.image(950, 400, "char-bean").setScale(1.2);
     this.add
       .text(512, 88, "Fantastic Mr Fox", {
         fontFamily: "Libre Baskerville, serif",

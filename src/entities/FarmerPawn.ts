@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { characterTexture } from "../art/appearance";
 import { CHARACTERS } from "../data/characters";
 import type { FarmerId, PatrolDef } from "../types";
 import { farmerCone, type ConeState } from "../systems/stealth";
@@ -23,7 +24,7 @@ export class FarmerPawn {
     this.sprite = scene.add.image(
       start.x * tileSize + tileSize / 2,
       start.y * tileSize + tileSize / 2,
-      `char-${patrol.farmer}`,
+      characterTexture(patrol.farmer),
     );
     this.sprite.setDepth(19);
     this.sprite.setScale(patrol.farmer === "boggis" ? 1.05 : patrol.farmer === "bean" ? 1.15 : 0.95);

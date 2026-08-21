@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { LETTERBOX } from "../data/palette";
+import { INK, PAPER } from "../data/palette";
 import { CHAPTERS, cutsceneById } from "../data/story";
 import { finishChapter, noteCutscene } from "../systems/flow";
 import type { CutsceneScript } from "../types";
@@ -12,6 +12,7 @@ export class StoryScene extends Phaser.Scene {
   private image!: Phaser.GameObjects.Image;
   private caption!: Phaser.GameObjects.Text;
   private title!: Phaser.GameObjects.Text;
+  private folio!: Phaser.GameObjects.Text;
 
   constructor() {
     super("Story");
@@ -33,37 +34,45 @@ export class StoryScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor("#1a140e");
-    this.add.rectangle(512, 288, 1024, 576, LETTERBOX, 1);
-    this.image = this.add.image(512, 250, this.script.panels[0].art).setDepth(2);
-    this.add.rectangle(512, 36, 1024, 72, LETTERBOX, 1).setDepth(5);
-    this.add.rectangle(512, 540, 1024, 88, LETTERBOX, 1).setDepth(5);
+    this.cameras.main.setBackgroundColor("#ead9b2");
+    this.add.image(512, 288, "paper-bg").setDisplaySize(1024, 576).setAlpha(0.45);
+    this.add.rectangle(512, 288, 980, 540, PAPER, 0.42).setStrokeStyle(2, INK, 0.55);
+    this.image = this.add.image(512, 248, this.script.panels[0].art).setDepth(2);
+    this.image.setDisplaySize(900, 400);
     this.title = this.add
       .text(512, 28, this.script.title, {
         fontFamily: "Libre Baskerville, serif",
-        fontSize: "24px",
-        color: "#f4e6c4",
+        fontSize: "26px",
+        color: "#2b2118",
         fontStyle: "italic",
       })
       .setOrigin(0.5)
       .setDepth(6);
     this.caption = this.add
-      .text(512, 528, "", {
+      .text(512, 478, "", {
         fontFamily: "Caveat, cursive",
-        fontSize: "26px",
-        color: "#f4e6c4",
+        fontSize: "24px",
+        color: "#2b2118",
         align: "center",
         wordWrap: { width: 860 },
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 0)
+      .setDepth(6);
+    this.folio = this.add
+      .text(980, 548, "", {
+        fontFamily: "Libre Baskerville, serif",
+        fontSize: "14px",
+        color: "#4a3b2a",
+      })
+      .setOrigin(1, 0.5)
       .setDepth(6);
     this.add
-      .text(512, 568, "Click or Space · S to skip", {
+      .text(44, 548, "Click or Space turns the page · S skips the chapter", {
         fontFamily: "Caveat, cursive",
         fontSize: "18px",
-        color: "#c8b89a",
+        color: "#4a3b2a",
       })
-      .setOrigin(0.5)
+      .setOrigin(0, 0.5)
       .setDepth(6);
 
     this.showPanel(0);
@@ -81,15 +90,16 @@ export class StoryScene extends Phaser.Scene {
     }
     this.image.setTexture(panel.art);
     this.image.setAlpha(0);
-    this.image.setPosition(512 - panel.panX, 250 - panel.panY);
+    this.image.setPosition(512 - panel.panX * 0.25, 248 - panel.panY * 0.2);
     this.caption.setText(panel.caption);
     this.title.setText(this.script.title);
+    this.folio.setText(`${index + 1} / ${this.script.panels.length}`);
     this.tweens.add({
       targets: this.image,
       alpha: 1,
-      x: 512 + panel.panX,
-      y: 250 + panel.panY,
-      duration: panel.holdMs,
+      x: 512 + panel.panX * 0.2,
+      y: 248 + panel.panY * 0.15,
+      duration: Math.min(panel.holdMs, 1800),
       ease: "Sine.easeInOut",
     });
     this.time.delayedCall(panel.holdMs + 200, () => {
