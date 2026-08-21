@@ -6,15 +6,20 @@ import { WASH_NIGHT } from "../data/palette";
 import { Actor } from "../entities/Actor";
 import { TileGrid } from "../systems/grid";
 import { cycleParty, playableNow, slotCharacter, statsOf } from "../systems/party";
+import { getSave, unlockCharacters } from "../systems/save";
 import { farmerCone, visibilityOf } from "../systems/stealth";
 import type { CharacterId, FarmerId } from "../types";
 import { PictureBookHud } from "../ui/PictureBookHud";
+import { INK, PAPER } from "../data/palette";
 
 interface FoxBit {
   actor: Actor;
   carrying: boolean;
   target: { x: number; y: number };
   hiddenUntil: number;
+  stuck: number;
+  lastX: number;
+  lastY: number;
 }
 
 export class FarmerModeScene extends Phaser.Scene {
@@ -27,7 +32,9 @@ export class FarmerModeScene extends Phaser.Scene {
   private coneGfx!: Phaser.GameObjects.Graphics;
   private escapes = 0;
   private finished = false;
+  private picking = true;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
+  private picker!: Phaser.GameObjects.Container;
 
   constructor() {
     super("FarmerMode");
@@ -43,21 +50,34 @@ export class FarmerModeScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#ead9b2");
 
     const ground = this.add.renderTexture(0, 0, this.grid.width * this.grid.tileSize, this.grid.height * this.grid.tileSize).setOrigin(0);
+    const stamp = this.make.image({ key: "tile-night", add: false });
+    stamp.setOrigin(0).setDisplaySize(this.grid.tileSize, this.grid.tileSize);
     for (let ty = 0; ty < this.grid.height; ty += 1) {
       for (let tx = 0; tx < this.grid.width; tx += 1) {
         const ch = this.grid.tile(tx, ty);
         if (ch === " ") {
           continue;
         }
-        const key = ch === "#" ? "tile-tree" : ch === "," ? "tile-tall" : ch === "+" ? "tile-hole" : ch === "_" ? "tile-floor" : "tile-night";
-        ground.draw(key, tx * this.grid.tileSize, ty * this.grid.tileSize);
+        const key =
+          ch === "#"
+            ? "tile-tree"
+            : ch === ","
+              ? "tile-tall"
+              : ch === "+"
+                ? "tile-hole"
+                : ch === "_"
+                  ? "tile-floor"
+                  : ch === "R"
+                    ? "tile-rock"
+                    : "tile-night";
+        stamp.setTexture(key);
+        ground.draw(stamp, tx * this.grid.tileSize, ty * this.grid.tileSize);
       }
     }
 
-    const allowed = playableNow(level.allowed);
-    const startId = (allowed[0] ?? "boggis") as FarmerId;
-    const spawn = this.grid.tileCenter(level.spawn.x, level.spawn.y);
-    this.player = new Actor(this, startId, spawn.x, spawn.y);
+    if (getSave().farmerModeUnlocked) {
+      unlockCharacters(["boggis", "bunce", "bean"]);
+    }
 
     this.holes = this.grid.findTiles("+").map((tile) => this.grid.tileCenter(tile.tx, tile.ty));
     if (this.holes.length === 0) {
@@ -69,10 +89,6 @@ export class FarmerModeScene extends Phaser.Scene {
       this.foods.push(this.add.image(pos.x, pos.y, `food-${food.kind}`).setDepth(11));
     }
 
-    this.spawnFox("mrFox");
-    this.spawnFox("smallFox");
-
-    this.coneGfx = this.add.graphics().setDepth(8);
     this.add
       .rectangle(
         (this.grid.width * this.grid.tileSize) / 2,
@@ -84,9 +100,82 @@ export class FarmerModeScene extends Phaser.Scene {
       )
       .setDepth(14);
 
+    this.cameras.main.setBounds(0, 0, this.grid.width * this.grid.tileSize, this.grid.height * this.grid.tileSize);
+    const hole = this.grid.tileCenter(level.hole.x, level.hole.y);
+    this.cameras.main.centerOn(hole.x, hole.y);
+    this.showPicker();
+  }
+
+  private showPicker(): void {
+    this.picking = true;
+    this.picker = this.add.container(512, 288).setScrollFactor(0).setDepth(90);
+    this.picker.add(this.add.rectangle(0, 0, 640, 340, PAPER, 0.96).setStrokeStyle(2, INK, 0.75));
+    this.picker.add(
+      this.add
+        .text(0, -120, "Put on a farmer's boots", {
+          fontFamily: "Libre Baskerville, serif",
+          fontSize: "26px",
+          color: "#2b2118",
+          fontStyle: "italic",
+        })
+        .setOrigin(0.5),
+    );
+    this.picker.add(
+      this.add
+        .text(0, -78, "The foxes already know the hill. You do not.", {
+          fontFamily: "Caveat, cursive",
+          fontSize: "22px",
+          color: "#2b2118",
+        })
+        .setOrigin(0.5),
+    );
+    const picks: Array<{ id: FarmerId; label: string; x: number }> = [
+      { id: "boggis", label: "Boggis", x: -190 },
+      { id: "bunce", label: "Bunce", x: 0 },
+      { id: "bean", label: "Bean", x: 190 },
+    ];
+    for (const pick of picks) {
+      const img = this.add.image(pick.x, 20, `char-${pick.id}`).setScale(1.05).setInteractive({ useHandCursor: true });
+      const name = this.add
+        .text(pick.x, 110, pick.label, {
+          fontFamily: "Libre Baskerville, serif",
+          fontSize: "18px",
+          color: "#2b2118",
+        })
+        .setOrigin(0.5);
+      img.on("pointerdown", () => this.startHunt(pick.id));
+      this.picker.add([img, name]);
+    }
+    this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
+      if (!this.picking) {
+        return;
+      }
+      if (event.key === "8") {
+        this.startHunt("boggis");
+      }
+      if (event.key === "9") {
+        this.startHunt("bunce");
+      }
+      if (event.key === "0") {
+        this.startHunt("bean");
+      }
+    });
+  }
+
+  private startHunt(id: FarmerId): void {
+    if (!this.picking) {
+      return;
+    }
+    this.picking = false;
+    this.picker.destroy();
+    const spawn = this.grid.tileCenter(farmerLevel.spawn.x, farmerLevel.spawn.y);
+    this.player = new Actor(this, id, spawn.x, spawn.y);
+    this.spawnFox("mrFox");
+    this.spawnFox("smallFox");
+    this.coneGfx = this.add.graphics().setDepth(8);
     this.hud = new PictureBookHud(this);
-    this.hud.setChapter(level.title, level.ink);
-    this.hud.refreshParty(this, level.allowed, this.player.id);
+    this.hud.setChapter(farmerLevel.title, farmerLevel.ink);
+    this.hud.refreshParty(this, farmerLevel.allowed, id);
 
     const kb = this.input.keyboard;
     if (!kb) {
@@ -110,13 +199,11 @@ export class FarmerModeScene extends Phaser.Scene {
         this.switchTo(slotCharacter(Number(event.key) - 1));
       }
     });
-
-    this.cameras.main.setBounds(0, 0, this.grid.width * this.grid.tileSize, this.grid.height * this.grid.tileSize);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
   }
 
   update(_t: number, dtMs: number): void {
-    if (this.finished) {
+    if (this.finished || this.picking) {
       return;
     }
     const dt = dtMs / 1000;
@@ -136,6 +223,9 @@ export class FarmerModeScene extends Phaser.Scene {
       carrying: false,
       target: this.nearestFood(hole.x, hole.y) ?? hole,
       hiddenUntil: 0,
+      stuck: 0,
+      lastX: hole.x,
+      lastY: hole.y,
     });
   }
 
@@ -252,6 +342,17 @@ export class FarmerModeScene extends Phaser.Scene {
       }
       if (this.grid.bodyFits(fox.actor.x, ny, stats)) {
         fox.actor.sprite.y = ny;
+      }
+      const moved = Math.hypot(fox.actor.x - fox.lastX, fox.actor.y - fox.lastY);
+      fox.stuck = moved < 4 ? fox.stuck + dt : 0;
+      fox.lastX = fox.actor.x;
+      fox.lastY = fox.actor.y;
+      if (fox.stuck > 1.4) {
+        const warp = this.nearestHole(fox.target.x, fox.target.y);
+        fox.actor.setPos(warp.x, warp.y);
+        fox.hiddenUntil = this.time.now + FARMER_MODE.holeSafeMs;
+        fox.stuck = 0;
+        continue;
       }
 
       if (Phaser.Math.Distance.Between(fox.actor.x, fox.actor.y, fox.target.x, fox.target.y) < 18) {

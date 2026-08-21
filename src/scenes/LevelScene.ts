@@ -100,6 +100,7 @@ export class LevelScene extends Phaser.Scene {
   protected route!: Phaser.GameObjects.Graphics;
   protected dark!: Phaser.GameObjects.Rectangle;
   protected carriedIcon!: Phaser.GameObjects.Image;
+  private stampImage!: Phaser.GameObjects.Image;
   private interactLatch = false;
   private digAcc = 0;
 
@@ -166,6 +167,8 @@ export class LevelScene extends Phaser.Scene {
     if (this.ground) {
       this.ground.destroy();
     }
+    this.stampImage = this.make.image({ key: "tile-grass", add: false });
+    this.stampImage.setOrigin(0);
     this.ground = this.add.renderTexture(0, 0, w, h).setOrigin(0).setDepth(1);
     for (let ty = 0; ty < this.grid.height; ty += 1) {
       for (let tx = 0; tx < this.grid.width; tx += 1) {
@@ -182,7 +185,8 @@ export class LevelScene extends Phaser.Scene {
     const key = ambientTile(ch, this.level.ambient);
     const x = tx * this.grid.tileSize;
     const y = ty * this.grid.tileSize;
-    this.ground.draw(key, x, y);
+    this.stampImage.setTexture(key).setDisplaySize(this.grid.tileSize, this.grid.tileSize);
+    this.ground.draw(this.stampImage, x, y);
   }
 
   private restamp(tx: number, ty: number, ch: string): void {
@@ -210,6 +214,11 @@ export class LevelScene extends Phaser.Scene {
       const texture = npc.id === "family" ? "char-smallFox" : `char-${npc.id === "mrsFox" ? "mrsFox" : npc.id}`;
       const sprite = this.add.image(pos.x, pos.y, texture).setDepth(12).setScale(0.7);
       this.npcs.push({ ...npc, x: open.tx, y: open.ty, sprite });
+    }
+    for (const cub of this.level.cubs) {
+      const open = this.snapOpen(cub.x, cub.y);
+      const pos = this.grid.tileCenter(open.tx, open.ty);
+      this.add.image(pos.x, pos.y, "char-smallFox").setDepth(12).setScale(0.48);
     }
   }
 
@@ -361,7 +370,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private handleDig(dt: number): void {
-    this.digging = this.keys.space.isDown;
+    this.digging = this.keys.space.isDown || this.keys.d.isDown;
     if (!this.digging) {
       this.digAcc = 0;
       return;

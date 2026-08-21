@@ -114,28 +114,28 @@ function buildWoodRows(): string[] {
     stampPatch(rows, x, y, 2, ",");
   }
 
-  strokeRect(rows, 4, 5, 16, 11, "#");
+  strokeRect(rows, 4, 5, 16, 11, "R");
   fillRect(rows, 5, 6, 14, 9, "_");
-  strokeRect(rows, 6, 7, 5, 4, "#");
+  strokeRect(rows, 6, 7, 5, 4, "R");
   fillRect(rows, 7, 8, 3, 2, "_");
   put(rows, 8, 10, ".");
-  strokeRect(rows, 12, 7, 6, 5, "#");
+  strokeRect(rows, 12, 7, 6, 5, "R");
   fillRect(rows, 13, 8, 4, 3, "_");
 
-  strokeRect(rows, 28, 6, 14, 10, "#");
+  strokeRect(rows, 28, 6, 14, 10, "R");
   fillRect(rows, 29, 7, 12, 8, "_");
-  strokeRect(rows, 30, 8, 5, 4, "#");
+  strokeRect(rows, 30, 8, 5, 4, "R");
   fillRect(rows, 31, 9, 3, 2, "_");
-  strokeRect(rows, 36, 8, 5, 5, "#");
+  strokeRect(rows, 36, 8, 5, 5, "R");
   fillRect(rows, 37, 9, 3, 3, "_");
 
-  strokeRect(rows, 50, 4, 18, 13, "#");
+  strokeRect(rows, 50, 4, 18, 13, "R");
   fillRect(rows, 51, 5, 16, 11, "_");
-  strokeRect(rows, 52, 6, 6, 6, "#");
+  strokeRect(rows, 52, 6, 6, 6, "R");
   fillRect(rows, 53, 7, 4, 4, "_");
-  strokeRect(rows, 60, 6, 6, 5, "#");
+  strokeRect(rows, 60, 6, 6, 5, "R");
   fillRect(rows, 61, 7, 4, 3, "_");
-  strokeRect(rows, 60, 12, 5, 4, "#");
+  strokeRect(rows, 60, 12, 5, 4, "R");
   fillRect(rows, 61, 13, 3, 2, "_");
 
   for (const x of [11, 34, 58]) {
@@ -226,6 +226,7 @@ export const woodLevel: LevelDef = {
   patrols: woodPatrols,
   foods: woodFoods,
   npcs: [],
+  cubs: [],
   collapseY: -1,
   objective: stealGoal,
   allowed: ["mrFox"],
@@ -276,6 +277,12 @@ export const siegeLevel: LevelDef = {
   patrols: [],
   foods: [],
   npcs: [{ id: "mrsFox", x: 23, y: 13, label: "Mrs Fox" }],
+  cubs: [
+    { x: 22, y: 13 },
+    { x: 24, y: 13 },
+    { x: 25, y: 14 },
+    { x: 21, y: 14 },
+  ],
   collapseY: 1,
   objective: reachDen,
   allowed: ["mrFox", "mrsFox", "smallFox"],
@@ -329,6 +336,12 @@ export const starvationLevel: LevelDef = {
     { id: "mole", x: 10, y: 18, label: "Mole" },
     { id: "weasel", x: 43, y: 18, label: "Weasel" },
   ],
+  cubs: [
+    { x: 25, y: 7 },
+    { x: 27, y: 7 },
+    { x: 24, y: 8 },
+    { x: 28, y: 8 },
+  ],
   collapseY: -1,
   objective: meetAnimals,
   allowed: foxAllowed(),
@@ -375,6 +388,7 @@ export const chickenLevel: LevelDef = {
     { id: "c8", kind: "chicken", farm: "boggis", x: 6, y: 11 },
   ],
   npcs: [],
+  cubs: [],
   collapseY: -1,
   objective: deposit(RAID_NEED.chickenHouse),
   allowed: foxAllowed(),
@@ -420,6 +434,7 @@ export const storeLevel: LevelDef = {
     { id: "g2", kind: "goose", farm: "bunce", x: 28, y: 10 },
   ],
   npcs: [],
+  cubs: [],
   collapseY: -1,
   objective: deposit(RAID_NEED.storehouse),
   allowed: foxAllowed(),
@@ -464,6 +479,7 @@ export const cellarLevel: LevelDef = {
     { id: "cd6", kind: "cider", farm: "bean", x: 21, y: 10 },
   ],
   npcs: [],
+  cubs: [],
   collapseY: -1,
   objective: deposit(RAID_NEED.cellar),
   allowed: foxAllowed(),
@@ -509,6 +525,12 @@ export const feastLevel: LevelDef = {
     { id: "mole", x: 6, y: 13, label: "Mole's family" },
     { id: "weasel", x: 40, y: 13, label: "Weasel's family" },
   ],
+  cubs: [
+    { x: 22, y: 8 },
+    { x: 26, y: 8 },
+    { x: 23, y: 9 },
+    { x: 25, y: 9 },
+  ],
   collapseY: -1,
   objective: inviteAll,
   allowed: ["smallFox"],
@@ -528,6 +550,7 @@ export const farmerLevel: LevelDef = {
   patrols: [],
   foods: woodFoods,
   npcs: [],
+  cubs: [],
   collapseY: -1,
   objective: farmerWatch,
   allowed: ["boggis", "bunce", "bean"],
@@ -555,4 +578,30 @@ export function levelById(id: string): LevelDef {
 
 export function tileAt(rows: string[], x: number, y: number): string {
   return rows[y]?.[x] ?? " ";
+}
+
+export function assertAllLevels(): void {
+  for (const level of Object.values(LEVELS)) {
+    if (level.rows.length === 0 || !level.rows[0]) {
+      throw new Error(`Level ${level.id} has no rows`);
+    }
+    const width = level.rows[0].length;
+    for (const [index, row] of level.rows.entries()) {
+      if (row.length !== width) {
+        throw new Error(`Level ${level.id} row ${index} width ${row.length} != ${width}`);
+      }
+    }
+    const points = [
+      level.spawn,
+      level.hole,
+      ...level.foods.map((food) => ({ x: food.x, y: food.y, id: food.id })),
+      ...level.npcs.map((npc) => ({ x: npc.x, y: npc.y, id: npc.id })),
+      ...level.cubs,
+    ];
+    for (const point of points) {
+      if (point.x < 0 || point.y < 0 || point.x >= width || point.y >= level.rows.length) {
+        throw new Error(`Level ${level.id} point is outside the map`);
+      }
+    }
+  }
 }

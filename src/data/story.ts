@@ -466,3 +466,31 @@ export const FARMER_MODE = {
   foxSpeed: 170,
   holeSafeMs: 420,
 } as const;
+
+export const REQUIRED_CUTSCENES = [
+  "tail-shot",
+  "shovels",
+  "chicken-house",
+  "storehouse",
+  "cider-cellar",
+  "feast",
+  "farmers-waiting",
+] as const;
+
+export function assertStoryGraph(): void {
+  const ids = new Set(CHAPTERS.map((chapter) => chapter.id));
+  for (const chapter of CHAPTERS) {
+    if (chapter.next && !ids.has(chapter.next)) {
+      throw new Error(`Chapter ${chapter.id} points at missing next ${chapter.next}`);
+    }
+    if (chapter.kind === "cutscene") {
+      if (!chapter.cutsceneId) {
+        throw new Error(`Cutscene chapter missing script: ${chapter.id}`);
+      }
+      cutsceneById(chapter.cutsceneId);
+    }
+  }
+  for (const id of REQUIRED_CUTSCENES) {
+    cutsceneById(id);
+  }
+}

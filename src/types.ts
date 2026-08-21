@@ -171,6 +171,7 @@ export interface LevelDef {
   patrols: PatrolDef[];
   foods: FoodDef[];
   npcs: NpcDef[];
+  cubs: Array<{ x: number; y: number }>;
   collapseY: number;
   objective: LevelObjective;
   allowed: CharacterId[];

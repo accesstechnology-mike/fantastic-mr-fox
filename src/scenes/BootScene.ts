@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { generateAllTextures } from "../art/generateTextures";
+import { assertAllLevels } from "../data/levels";
 import { PAPER } from "../data/palette";
+import { assertStoryGraph } from "../data/story";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +18,8 @@ export class BootScene extends Phaser.Scene {
         color: "#2b2118",
       })
       .setOrigin(0.5);
+    assertStoryGraph();
+    assertAllLevels();
     generateAllTextures(this);
     this.time.delayedCall(200, () => {
       label.destroy();

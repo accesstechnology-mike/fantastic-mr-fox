@@ -23,7 +23,7 @@ npm run preview   # serve the built game
 - **Move** Arrows or WASD
 - **Sneak** Hold Shift
 - **Take / talk / send food home** E
-- **Dig** Space
+- **Dig** Space or D
 - **Switch** `[` `]` or `1`–`9` (only characters you have met)
 
 Never take too much from one farm. The three farmers wait at the hole during the later raids — the danger there is noise and falling earth, not a boss fight.
