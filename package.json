@@ -1,0 +1,19 @@
+{
+  "name": "fantastic-mr-fox",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A short book-faithful Fantastic Mr Fox game (Roald Dahl), Phaser 3 + Vite + TypeScript.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.88.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
