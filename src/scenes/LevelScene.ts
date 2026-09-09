@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { characterTexture } from "../art/appearance";
 import { CHARACTERS, FARMERS, SWITCH_SLOTS } from "../data/characters";
-import { FARM_WASH, WASH_NIGHT } from "../data/palette";
+import { FARM_WASH, WASH_CLAY, WASH_NIGHT } from "../data/palette";
 import { abilityInk, INVITE_LINES, MEET_LINES, TOASTS } from "../data/dialogue";
 import { levelById } from "../data/levels";
 import { Actor } from "../entities/Actor";
@@ -9,7 +9,7 @@ import { FarmerPawn } from "../entities/FarmerPawn";
 import { CarrySystem, type CarriedFood } from "../systems/carry";
 import { DigSystem } from "../systems/dig";
 import { finishChapter } from "../systems/flow";
-import { isDeath, isDiggable, TileGrid } from "../systems/grid";
+import { isDeath, TileGrid } from "../systems/grid";
 import { NoiseSystem } from "../systems/noise";
 import { cycleParty, playableNow, slotCharacter, statsOf } from "../systems/party";
 import { getSave, patchSave, unlockCharacters } from "../systems/save";
@@ -63,6 +63,13 @@ interface NpcBit {
   sprite: Phaser.GameObjects.Image;
 }
 
+function npcCharacter(id: NpcBit["id"]): CharacterId | null {
+  if (id === "family") {
+    return null;
+  }
+  return id;
+}
+
 export class LevelScene extends Phaser.Scene {
   protected levelId: string;
   protected chapterId: string;
@@ -70,6 +77,7 @@ export class LevelScene extends Phaser.Scene {
   protected grid!: TileGrid;
   protected ground!: Phaser.GameObjects.RenderTexture;
   protected player!: Actor;
+  protected mates = new Map<CharacterId, Actor>();
   protected farmers: FarmerPawn[] = [];
   protected foods: FoodBit[] = [];
   protected npcs: NpcBit[] = [];
@@ -105,6 +113,8 @@ export class LevelScene extends Phaser.Scene {
   private stampImage!: Phaser.GameObjects.Image;
   private interactLatch = false;
   private digAcc = 0;
+  private digMissTold = false;
+  private controlMark!: Phaser.GameObjects.Ellipse;
 
   constructor(key: SceneKey, levelId: string, chapterId: string) {
     super(key);
@@ -121,6 +131,7 @@ export class LevelScene extends Phaser.Scene {
     this.farmers = [];
     this.foods = [];
     this.npcs = [];
+    this.mates = new Map();
     this.finished = false;
     this.alert = 0;
     this.collapseY = this.level.collapseY;
@@ -137,7 +148,9 @@ export class LevelScene extends Phaser.Scene {
     this.bindKeys();
     this.hud = new PictureBookHud(this);
     this.hud.setPicker((id) => this.trySwitch(id));
+    this.hud.setDigAvailable(this.level.rows.some((row) => row.includes("%") || row.includes("B")));
     this.hud.setChapter(this.level.title, this.level.ink);
+    this.controlMark = this.add.ellipse(this.player.x, this.player.y + 16, 22, 10, WASH_CLAY, 0.4).setDepth(18);
     this.refreshPartyHud();
     this.briefParty();
     this.route = this.add.graphics().setDepth(7);
@@ -261,11 +274,22 @@ export class LevelScene extends Phaser.Scene {
 
   private spawnActors(): void {
     const start = this.snapOpen(this.level.spawn.x, this.level.spawn.y);
-    const forced = this.level.forceCharacter;
     const allowed = playableNow(this.level.allowed);
-    const startId = forced && allowed.includes(forced) ? forced : (allowed[0] ?? "mrFox");
-    const c = this.grid.tileCenter(start.tx, start.ty);
-    this.player = new Actor(this, startId, c.x, c.y);
+    const startId = this.leadId();
+
+    this.ensureMate(startId, this.grid.tileCenter(start.tx, start.ty));
+    for (const id of allowed) {
+      if (id === startId || !this.hasWorldHome(id, startId)) {
+        continue;
+      }
+      this.ensureMate(id);
+    }
+    const lead = this.mates.get(startId);
+    if (!lead) {
+      throw new Error(`Missing starting actor ${startId}`);
+    }
+    this.player = lead;
+    this.markControl();
 
     for (const patrol of this.level.patrols) {
       const farmer = new FarmerPawn(this, patrol, this.grid.tileSize);
@@ -275,6 +299,10 @@ export class LevelScene extends Phaser.Scene {
       this.spawnFood(food);
     }
     for (const npc of this.level.npcs) {
+      const who = npcCharacter(npc.id);
+      if (who && this.mates.has(who)) {
+        continue;
+      }
       const open = this.snapOpen(npc.x, npc.y);
       const pos = this.grid.tileCenter(open.tx, open.ty);
       const texture = npc.id === "family" ? characterTexture("smallFox") : characterTexture(npc.id === "mrsFox" ? "mrsFox" : npc.id);
@@ -282,43 +310,132 @@ export class LevelScene extends Phaser.Scene {
       sprite.setInteractive({ useHandCursor: true });
       const bit = { ...npc, x: open.tx, y: open.ty, sprite };
       sprite.on("pointerdown", () => this.engageNpc(bit));
-      this.add
-        .text(pos.x, pos.y - 28, npc.label, {
-          fontFamily: "Caveat, cursive",
-          fontSize: "16px",
-          color: "#2b2118",
-          backgroundColor: "#f4e6c4cc",
-          padding: { x: 4, y: 1 },
-        })
-        .setOrigin(0.5)
-        .setDepth(16);
+      this.nameplate(pos.x, pos.y - 28, npc.label);
       this.npcs.push(bit);
     }
+    const smallHome = this.mates.get("smallFox");
+    const smallTile = smallHome ? this.grid.worldToTile(smallHome.x, smallHome.y) : null;
     for (const cub of this.level.cubs) {
       const open = this.snapOpen(cub.x, cub.y);
+      if (smallTile && open.tx === smallTile.tx && open.ty === smallTile.ty) {
+        continue;
+      }
       const pos = this.grid.tileCenter(open.tx, open.ty);
       const cubSprite = this.add.image(pos.x, pos.y, characterTexture("smallFox")).setDepth(12).setScale(0.42);
       cubSprite.setInteractive({ useHandCursor: true });
       cubSprite.on("pointerdown", () => {
         unlockCharacters(["smallFox"]);
+        this.ensureMate("smallFox", pos);
         this.refreshPartyHud();
         this.trySwitch("smallFox");
       });
     }
-    if (this.level.cubs.length > 0) {
+    if (this.level.cubs.length > 0 && !smallHome) {
       const first = this.snapOpen(this.level.cubs[0].x, this.level.cubs[0].y);
       const pos = this.grid.tileCenter(first.tx, first.ty);
-      this.add
-        .text(pos.x, pos.y - 26, CHARACTERS.smallFox.name, {
-          fontFamily: "Caveat, cursive",
-          fontSize: "16px",
-          color: "#2b2118",
-          backgroundColor: "#f4e6c4cc",
-          padding: { x: 4, y: 1 },
-        })
-        .setOrigin(0.5)
-        .setDepth(16);
+      this.nameplate(pos.x, pos.y - 26, CHARACTERS.smallFox.name);
     }
+  }
+
+  private nameplate(x: number, y: number, label: string): void {
+    this.add
+      .text(x, y, label, {
+        fontFamily: "Caveat, cursive",
+        fontSize: "16px",
+        color: "#2b2118",
+        backgroundColor: "#f4e6c4cc",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setDepth(16);
+  }
+
+  private hasWorldHome(id: CharacterId, startId: CharacterId): boolean {
+    if (id === startId) {
+      return true;
+    }
+    if (this.level.npcs.some((npc) => npcCharacter(npc.id) === id)) {
+      return true;
+    }
+    return id === "smallFox" && this.level.cubs.length > 0;
+  }
+
+  private homeWorld(id: CharacterId): { x: number; y: number } {
+    const spawn = this.snapOpen(this.level.spawn.x, this.level.spawn.y);
+    if (id === this.leadId()) {
+      return this.grid.tileCenter(spawn.tx, spawn.ty);
+    }
+    const npc = this.level.npcs.find((item) => npcCharacter(item.id) === id);
+    if (npc) {
+      const open = this.snapOpen(npc.x, npc.y);
+      return this.grid.tileCenter(open.tx, open.ty);
+    }
+    if (id === "smallFox" && this.level.cubs[0]) {
+      const open = this.snapOpen(this.level.cubs[0].x, this.level.cubs[0].y);
+      return this.grid.tileCenter(open.tx, open.ty);
+    }
+    const beside = this.player
+      ? this.grid.worldToTile(this.player.x, this.player.y)
+      : spawn;
+    const open = this.snapOpen(beside.tx + 1, beside.ty);
+    return this.grid.tileCenter(open.tx, open.ty);
+  }
+
+  private bindMate(actor: Actor): void {
+    actor.sprite.setInteractive({ useHandCursor: true });
+    actor.sprite.on("pointerdown", () => this.trySwitch(actor.id));
+  }
+
+  private markControl(): void {
+    for (const actor of this.mates.values()) {
+      const here = actor.id === this.player.id;
+      actor.sprite.setDepth(here ? 22 : 19);
+      actor.sprite.setAlpha(here ? 1 : 0.9);
+    }
+  }
+
+  private hideNpc(id: CharacterId): void {
+    this.npcs = this.npcs.filter((npc) => {
+      if (npcCharacter(npc.id) !== id) {
+        return true;
+      }
+      npc.sprite.destroy();
+      return false;
+    });
+  }
+
+  private ensureMate(id: CharacterId, at?: { x: number; y: number }): Actor {
+    const existing = this.mates.get(id);
+    if (existing) {
+      return existing;
+    }
+    const pos = at ?? this.homeWorld(id);
+    const taken = new Set(
+      [...this.mates.values()].map((mate) => {
+        const tile = this.grid.worldToTile(mate.x, mate.y);
+        return `${tile.tx},${tile.ty}`;
+      }),
+    );
+    let seat = pos;
+    const tile = this.grid.worldToTile(pos.x, pos.y);
+    if (taken.has(`${tile.tx},${tile.ty}`)) {
+      const open = this.snapOpen(tile.tx + 1, tile.ty);
+      seat = this.grid.tileCenter(open.tx, open.ty);
+    }
+    const actor = new Actor(this, id, seat.x, seat.y);
+    this.bindMate(actor);
+    this.mates.set(id, actor);
+    this.hideNpc(id);
+    if (id !== this.leadId()) {
+      this.nameplate(actor.x, actor.y - 28, CHARACTERS[id].name);
+    }
+    return actor;
+  }
+
+  private leadId(): CharacterId {
+    const forced = this.level.forceCharacter;
+    const allowed = playableNow(this.level.allowed);
+    return forced && allowed.includes(forced) ? forced : (allowed[0] ?? "mrFox");
   }
 
   private briefParty(): void {
@@ -441,6 +558,7 @@ export class LevelScene extends Phaser.Scene {
     this.dark.setAlpha(this.shade());
     this.drawRoute();
     this.syncCarryIcon();
+    this.controlMark.setPosition(this.player.x, this.player.y + 16);
     this.refreshObjective();
     this.refreshHint();
     this.checkWin();
@@ -505,23 +623,43 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private handleDig(dt: number): void {
-    this.digging = this.keys.space.isDown;
+    this.digging = this.keys.space.isDown || this.hud.digHeld;
     if (!this.digging) {
       this.digAcc = 0;
+      this.digMissTold = false;
+      return;
+    }
+    const justStarted = Phaser.Input.Keyboard.JustDown(this.keys.space) || (this.hud.digHeld && this.digAcc === 0);
+    const target = this.dig.nearestDiggable(this.player.x, this.player.y, this.player.facing, this.grid);
+    if (!target) {
+      if (justStarted && !this.digMissTold) {
+        this.digMissTold = true;
+        this.hud.say(this, TOASTS.noEarth);
+      }
       return;
     }
     this.digAcc += dt;
-    if (this.digAcc < 0.16) {
+    if (this.digAcc < 0.12) {
       return;
     }
     this.digAcc = 0;
-    const tries = [this.player.facing, { x: 0, y: 1 }, { x: 0, y: -1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
-    for (const dir of tries) {
-      const hit = this.dig.strike(this.player.x, this.player.y, dir, this.grid, this.player.id);
-      if (hit?.opened) {
-        this.restamp(hit.tx, hit.ty, ".");
-        return;
-      }
+    const hit = this.dig.strike(this.player.x, this.player.y, this.player.facing, this.grid, this.player.id);
+    if (!hit) {
+      return;
+    }
+    const puffAt = this.grid.tileCenter(hit.tx, hit.ty);
+    const puff = this.add.circle(puffAt.x, puffAt.y, 6, WASH_CLAY, 0.5).setDepth(8);
+    this.tweens.add({
+      targets: puff,
+      alpha: 0,
+      scale: 2.1,
+      duration: 200,
+      onComplete: () => puff.destroy(),
+    });
+    this.cameras.main.shake(50, 0.0018);
+    if (hit.opened) {
+      this.restamp(hit.tx, hit.ty, ".");
+      this.hud.say(this, TOASTS.openedEarth, 1600);
     }
   }
 
@@ -558,6 +696,8 @@ export class LevelScene extends Phaser.Scene {
   private engageNpc(npc: NpcBit): void {
     if (npc.id === "mrsFox") {
       this.hud.say(this, MEET_LINES.mrsFox, 4200);
+      this.ensureMate("mrsFox", this.grid.tileCenter(npc.x, npc.y));
+      this.refreshPartyHud();
       this.trySwitch("mrsFox");
       return;
     }
@@ -571,16 +711,17 @@ export class LevelScene extends Phaser.Scene {
         return;
       }
       const save = getSave();
+      const pos = this.grid.tileCenter(npc.x, npc.y);
       if (!save.found[npc.id]) {
         unlockCharacters([npc.id]);
         patchSave({ found: { ...save.found, [npc.id]: true } });
         this.hud.say(this, MEET_LINES[npc.id], 4600);
-        this.refreshPartyHud();
-        this.trySwitch(npc.id);
       } else {
         this.hud.say(this, MEET_LINES[npc.id], 3000);
-        this.trySwitch(npc.id);
       }
+      this.ensureMate(npc.id, pos);
+      this.refreshPartyHud();
+      this.trySwitch(npc.id);
     }
   }
 
@@ -667,22 +808,23 @@ export class LevelScene extends Phaser.Scene {
       this.hud.say(this, TOASTS.heavy);
       return;
     }
-    const seat = this.seatFor(stats);
-    if (!seat) {
+    const next = this.ensureMate(id);
+    if (!this.grid.bodyFits(next.x, next.y, next.stats) && !this.seatNear(next)) {
       this.hud.say(this, TOASTS.switchDenied);
       return;
     }
-    this.player.setPos(seat.x, seat.y);
-    this.player.apply(id);
+    this.player = next;
+    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
+    this.markControl();
     this.refreshPartyHud();
     this.hud.say(this, abilityInk(id), 2400);
   }
 
-  private seatFor(stats: ReturnType<typeof statsOf>): { x: number; y: number } | null {
-    if (this.grid.bodyFits(this.player.x, this.player.y, stats)) {
-      return { x: this.player.x, y: this.player.y };
+  private seatNear(actor: Actor): { x: number; y: number } | null {
+    if (this.grid.bodyFits(actor.x, actor.y, actor.stats)) {
+      return { x: actor.x, y: actor.y };
     }
-    const { tx, ty } = this.grid.worldToTile(this.player.x, this.player.y);
+    const { tx, ty } = this.grid.worldToTile(actor.x, actor.y);
     const deltas = [
       [0, 0],
       [1, 0],
@@ -700,7 +842,8 @@ export class LevelScene extends Phaser.Scene {
     ];
     for (const [dx, dy] of deltas) {
       const pos = this.grid.tileCenter(tx + dx, ty + dy);
-      if (this.grid.bodyFits(pos.x, pos.y, stats) && !this.grid.onDeath(pos.x, pos.y)) {
+      if (this.grid.bodyFits(pos.x, pos.y, actor.stats) && !this.grid.onDeath(pos.x, pos.y)) {
+        actor.setPos(pos.x, pos.y);
         return pos;
       }
     }
@@ -773,6 +916,7 @@ export class LevelScene extends Phaser.Scene {
     });
     if ((nearSqueeze || this.collapseY >= 5) && !getSave().unlocked.includes("smallFox")) {
       unlockCharacters(["smallFox"]);
+      this.ensureMate("smallFox");
       this.refreshPartyHud();
       this.hud.say(this, TOASTS.unlocked(CHARACTERS.smallFox.name), 3600);
       this.trySwitch("smallFox");
@@ -907,9 +1051,9 @@ export class LevelScene extends Phaser.Scene {
       this.hud.setHint(`E or click — speak to ${npc.label} (and play as them)`);
       return;
     }
-    const ahead = this.dig.facingTile(this.player.x, this.player.y, this.player.facing, this.grid);
-    if (isDiggable(this.grid.tile(ahead.tx, ahead.ty))) {
-      this.hud.setHint("Space — dig");
+    const earth = this.dig.nearestDiggable(this.player.x, this.player.y, this.player.facing, this.grid);
+    if (earth) {
+      this.hud.setHint("Hold Space — dig this earth");
       return;
     }
     const playable = playableNow(this.level.allowed);

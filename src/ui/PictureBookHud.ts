@@ -15,6 +15,8 @@ export class PictureBookHud {
   private readonly noise: Phaser.GameObjects.Text;
   private toastUntil = 0;
   private onPick: ((id: CharacterId) => void) | null = null;
+  private readonly digButton: Phaser.GameObjects.Container;
+  digHeld = false;
 
   constructor(scene: Phaser.Scene) {
     this.root = scene.add.container(0, 0).setScrollFactor(0).setDepth(80);
@@ -63,9 +65,40 @@ export class PictureBookHud {
       })
       .setOrigin(1, 0);
     this.party = scene.add.container(520, 4);
-    this.root.add([top, bottom, this.title, this.ink, this.hint, this.toast, this.noise, this.party]);
+    this.digButton = this.makeDigButton(scene);
+    this.root.add([top, bottom, this.title, this.ink, this.hint, this.toast, this.noise, this.party, this.digButton]);
     scene.add.rectangle(512, 2, 1024, 6, LETTERBOX, 0.25).setScrollFactor(0).setDepth(79);
     scene.add.rectangle(512, 574, 1024, 6, LETTERBOX, 0.25).setScrollFactor(0).setDepth(79);
+  }
+
+  private makeDigButton(scene: Phaser.Scene): Phaser.GameObjects.Container {
+    const box = scene.add.rectangle(0, 0, 88, 44, PAPER, 0.96).setStrokeStyle(2, INK, 0.7);
+    const label = scene.add
+      .text(0, 0, "Space — dig", {
+        fontFamily: "Caveat, cursive",
+        fontSize: "18px",
+        color: "#2b2118",
+        align: "center",
+      })
+      .setOrigin(0.5);
+    const wrap = scene.add.container(930, 548, [box, label]);
+    wrap.setVisible(false);
+    box.setInteractive({ useHandCursor: true });
+    const hold = (down: boolean) => {
+      this.digHeld = down;
+      box.setStrokeStyle(down ? 3 : 2, INK, down ? 1 : 0.7);
+    };
+    box.on("pointerdown", () => hold(true));
+    box.on("pointerup", () => hold(false));
+    box.on("pointerout", () => hold(false));
+    return wrap;
+  }
+
+  setDigAvailable(show: boolean): void {
+    this.digButton.setVisible(show);
+    if (!show) {
+      this.digHeld = false;
+    }
   }
 
   setPicker(handler: (id: CharacterId) => void): void {

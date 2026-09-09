@@ -13,6 +13,8 @@ export const TOASTS = {
   collapse: "A beam coughed and the dark came closer.",
   caughtFox: "Luck, not wisdom. One fox in the lantern — the rest still feast.",
   foxGone: "A flash of rust, then only the hole.",
+  noEarth: "Hold Space against the brown earth. The den floor will not give.",
+  openedEarth: "The earth gave. Keep going down.",
 } as const;
 
 export const MEET_LINES: Record<"badger" | "mole" | "rabbit" | "weasel" | "mrsFox", string> = {

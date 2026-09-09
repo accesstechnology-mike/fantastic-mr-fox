@@ -277,15 +277,15 @@ function buildSiegeRows(): string[] {
   fillRect(rows, width - 2, 0, 2, height, "R");
   fillRect(rows, 0, height - 1, width, 1, "R");
 
-  fillRect(rows, 8, 3, 32, 5, ".");
+  fillRect(rows, 8, 3, 32, 3, ".");
   put(rows, 24, 4, "+");
 
-  fillRect(rows, 21, 9, 6, 2, "s");
-  fillRect(rows, 6, 8, 4, 3, "s");
-  fillRect(rows, 38, 8, 4, 3, "w");
+  fillRect(rows, 21, 8, 6, 2, "s");
+  fillRect(rows, 6, 7, 4, 3, "s");
+  fillRect(rows, 38, 7, 4, 3, "w");
 
-  fillRect(rows, 14, 11, 20, 6, ".");
-  fillRect(rows, 20, 13, 8, 3, "D");
+  fillRect(rows, 14, 10, 20, 6, ".");
+  fillRect(rows, 20, 12, 8, 3, "D");
   return rows;
 }
 
@@ -305,16 +305,16 @@ export const siegeLevel: LevelDef = {
   foods: [],
   npcs: [{ id: "mrsFox", x: 20, y: 5, label: CHARACTERS.mrsFox.name }],
   cubs: [
-    { x: 22, y: 6 },
-    { x: 26, y: 6 },
+    { x: 22, y: 4 },
+    { x: 26, y: 4 },
     { x: 27, y: 5 },
-    { x: 21, y: 6 },
+    { x: 21, y: 4 },
   ],
   labels: [
     { x: 24, y: 3, title: "The old den", subtitle: "click a fox — or 1 / 2 / 3 — to play as them" },
-    { x: 24, y: 8, title: "Dig down", subtitle: "hold Space at this earth" },
-    { x: 24, y: 9, title: CHARACTERS.smallFox.name, subtitle: "only a small fox fits — press 3 or click a cub" },
-    { x: 24, y: 14, title: "A deeper den", subtitle: "get the family here" },
+    { x: 24, y: 6, title: "Dig down", subtitle: "hold Space at this earth" },
+    { x: 24, y: 8, title: CHARACTERS.smallFox.name, subtitle: "only a small fox fits — press 3 or click a cub" },
+    { x: 24, y: 13, title: "A deeper den", subtitle: "get the family here" },
   ],
   yards: [],
   collapseY: -1,
