@@ -1,7 +1,8 @@
 import type { CharacterId } from "../types";
 
 export const TOASTS = {
-  spotted: "A lantern pinned you to the grass. The bag is empty again.",
+  spotted: (who: string) => `${who}'s lantern found you. The bag is empty again.`,
+  spottedEmpty: (who: string) => `${who}'s lantern found you. Back to the hole.`,
   greedWarn: "Not all from one farm, Mr Fox. The others will notice.",
   greedFail: "Too much from one yard. The guns woke early.",
   surface: "The hill opened like a mouth. Keep below the iron.",

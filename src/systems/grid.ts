@@ -21,6 +21,10 @@ export function isDeath(tile: string): boolean {
   return tile === "^";
 }
 
+export function blocksSight(tile: string): boolean {
+  return !SEE_THROUGH.has(tile) && tile !== "^";
+}
+
 export function isDiggable(tile: string): boolean {
   return tile === "%" || tile === "B";
 }

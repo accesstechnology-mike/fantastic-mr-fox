@@ -720,7 +720,7 @@ export class LevelScene extends Phaser.Scene {
         farmer.cone(),
       );
       if (vis >= spottedThreshold(this.alert)) {
-        this.spotted();
+        this.spotted(farmer);
         return;
       }
       if (this.player.stats.hear > 0) {
@@ -734,8 +734,14 @@ export class LevelScene extends Phaser.Scene {
     }
   }
 
-  private spotted(): void {
-    for (const item of this.carry.dropAll()) {
+  private spotted(farmer: FarmerPawn): void {
+    this.alert += 1;
+    farmer.alert += 1;
+    farmer.sprite.setTint(0xf0d878);
+    this.stunned = 0.55;
+    this.cameras.main.flash(180, 240, 216, 120);
+    const dropped = this.carry.dropAll();
+    for (const item of dropped) {
       const def = this.level.foods.find((food) => food.id === item.id);
       if (def && !this.foods.some((food) => food.def.id === def.id)) {
         this.spawnFood(def);
@@ -744,7 +750,12 @@ export class LevelScene extends Phaser.Scene {
     const hole = this.snapOpen(this.level.hole.x, this.level.hole.y);
     const c = this.grid.tileCenter(hole.tx, hole.ty);
     this.player.setPos(c.x, c.y);
-    this.hud.say(this, TOASTS.spotted);
+    const who = CHARACTERS[farmer.id].name;
+    this.hud.say(
+      this,
+      dropped.length > 0 ? TOASTS.spotted(who) : TOASTS.spottedEmpty(who),
+      3600,
+    );
   }
 
   private maybeUnlockSmall(): void {

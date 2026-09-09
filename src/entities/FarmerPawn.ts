@@ -73,7 +73,7 @@ export class FarmerPawn {
   private drawCone(lookout: boolean): void {
     const cone = this.cone();
     this.coneGfx.clear();
-    const alpha = lookout ? 0.28 : 0.1;
+    const alpha = lookout ? 0.42 : 0.28;
     this.coneGfx.fillStyle(0xf0d878, alpha);
     this.coneGfx.beginPath();
     this.coneGfx.moveTo(cone.x, cone.y);
@@ -84,7 +84,7 @@ export class FarmerPawn {
     }
     this.coneGfx.closePath();
     this.coneGfx.fillPath();
-    this.coneGfx.lineStyle(lookout ? 2 : 1, 0x2b2118, lookout ? 0.45 : 0.15);
+    this.coneGfx.lineStyle(lookout ? 2 : 1.4, 0x2b2118, lookout ? 0.55 : 0.35);
     this.coneGfx.strokePath();
   }
 

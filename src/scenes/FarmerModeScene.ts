@@ -344,7 +344,7 @@ export class FarmerModeScene extends Phaser.Scene {
     const angle = Math.atan2(this.player.facing.y, this.player.facing.x || 0.01);
     const cone = farmerCone(this.player.id as FarmerId, this.player.x, this.player.y, angle);
     this.coneGfx.clear();
-    this.coneGfx.fillStyle(0xf0d878, 0.22);
+    this.coneGfx.fillStyle(0xf0d878, 0.3);
     this.coneGfx.beginPath();
     this.coneGfx.moveTo(cone.x, cone.y);
     for (let i = 0; i <= 12; i += 1) {

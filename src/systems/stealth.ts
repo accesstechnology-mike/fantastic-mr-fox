@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { CHARACTERS } from "../data/characters";
 import type { CharacterId, FarmerId } from "../types";
-import { coverBonus, type TileGrid } from "./grid";
+import { blocksSight, coverBonus, type TileGrid } from "./grid";
 import { statsOf } from "./party";
 
 export interface ConeState {
@@ -27,8 +27,11 @@ export function pointInCone(px: number, py: number, cone: ConeState): boolean {
   const dx = px - cone.x;
   const dy = py - cone.y;
   const dist = Math.hypot(dx, dy);
-  if (dist > cone.length || dist < 10) {
-    return dist < 18;
+  if (dist > cone.length) {
+    return false;
+  }
+  if (dist < 18) {
+    return true;
   }
   const bearing = Math.atan2(dy, dx);
   let delta = bearing - cone.angle;
@@ -41,6 +44,33 @@ export function pointInCone(px: number, py: number, cone: ConeState): boolean {
   return Math.abs(delta) <= cone.halfAngle;
 }
 
+export function hasLineOfSight(
+  grid: TileGrid,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+): boolean {
+  const dist = Math.hypot(toX - fromX, toY - fromY);
+  if (dist < 8) {
+    return true;
+  }
+  const steps = Math.max(2, Math.ceil(dist / (grid.tileSize * 0.35)));
+  for (let i = 1; i < steps; i += 1) {
+    const t = i / steps;
+    const x = fromX + (toX - fromX) * t;
+    const y = fromY + (toY - fromY) * t;
+    if (blocksSight(grid.tileWorld(x, y))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * How clearly a lantern has the fox. Stealth and sneak trim the edges;
+ * they do not make an open lantern harmless.
+ */
 export function visibilityOf(
   px: number,
   py: number,
@@ -52,17 +82,19 @@ export function visibilityOf(
   if (!pointInCone(px, py, cone)) {
     return 0;
   }
+  if (!hasLineOfSight(grid, cone.x, cone.y, px, py)) {
+    return 0;
+  }
   const stats = statsOf(character);
   const { tx, ty } = grid.worldToTile(px, py);
-  const grass = coverBonus(grid.tile(tx, ty));
-  const sneak = sneaking ? 0.34 : 0;
-  const quiet = 1 - (1 - stats.quiet) * 0.35;
+  const cover = coverBonus(grid.tile(tx, ty));
+  const sneak = sneaking ? 0.32 : 0;
+  const sly = stats.stealth * 0.25;
   const dist = Math.hypot(px - cone.x, py - cone.y);
-  const fade = 1 - (dist / cone.length) * 0.35;
-  const seen = (1 - stats.stealth - grass - sneak) * quiet * fade;
-  return Math.max(0, seen);
+  const fade = 1 - (dist / Math.max(cone.length, 1)) * 0.3;
+  return Math.max(0, (1 - cover - sneak - sly) * fade);
 }
 
 export function spottedThreshold(alert: number): number {
-  return Math.max(0.28, 0.46 - alert * 0.06);
+  return Math.max(0.28, 0.42 - alert * 0.05);
 }
